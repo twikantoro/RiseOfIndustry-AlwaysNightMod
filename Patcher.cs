@@ -13,8 +13,10 @@ class Patcher
             string assemblyPath = managedDir + @"\Assembly-CSharp.dll";
             string backupPath = assemblyPath + ".bak";
 
-            if (!System.IO.File.Exists(backupPath))
-            {
+            // Always start from a clean backup to avoid multiple injections if re-run
+            if (System.IO.File.Exists(backupPath)) {
+                System.IO.File.Copy(backupPath, assemblyPath, true);
+            } else {
                 System.IO.File.Copy(assemblyPath, backupPath);
             }
 
@@ -24,46 +26,33 @@ class Patcher
             var parameters = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = true };
             using (var asmDef = AssemblyDefinition.ReadAssembly(assemblyPath, parameters))
             {
-                var sunType = asmDef.MainModule.Types.FirstOrDefault(t => t.FullName == "ProjectAutomata.Sun");
-                if (sunType == null) {
-                    Console.WriteLine("Could not find Sun type");
+                // Inject into TimeManager.Awake
+                var targetType = asmDef.MainModule.Types.FirstOrDefault(t => t.FullName == "ProjectAutomata.TimeManager");
+                if (targetType == null) {
+                    Console.WriteLine("Could not find TimeManager type");
                     return;
                 }
 
-                var updateMethod = sunType.Methods.FirstOrDefault(m => m.Name == "Update");
-                if (updateMethod == null) {
-                    Console.WriteLine("Could not find Update method");
-                    return;
-                }
-
-                // Check if already patched
-                bool alreadyPatched = updateMethod.Body.Instructions.Any(i => i.OpCode == OpCodes.Call && i.Operand.ToString().Contains("ApplyNight"));
-                if (alreadyPatched) {
-                    Console.WriteLine("Already patched!");
+                var targetMethod = targetType.Methods.FirstOrDefault(m => m.Name == "Awake");
+                if (targetMethod == null) {
+                    Console.WriteLine("Could not find Awake method");
                     return;
                 }
 
                 var hookAsmDef = AssemblyDefinition.ReadAssembly(managedDir + @"\AlwaysNightHook.dll", parameters);
                 var hookType = hookAsmDef.MainModule.Types.FirstOrDefault(t => t.FullName == "AlwaysNightHook");
-                var applyNightMethod = hookType.Methods.FirstOrDefault(m => m.Name == "ApplyNight");
+                var initMethod = hookType.Methods.FirstOrDefault(m => m.Name == "Init");
 
-                var applyNightRef = asmDef.MainModule.ImportReference(applyNightMethod);
+                var initRef = asmDef.MainModule.ImportReference(initMethod);
 
-                var processor = updateMethod.Body.GetILProcessor();
-                var instructions = updateMethod.Body.Instructions;
+                var processor = targetMethod.Body.GetILProcessor();
                 
-                var lastRet = instructions.LastOrDefault(i => i.OpCode == OpCodes.Ret);
+                // Insert Call to Init at the very beginning
+                var firstInstruction = targetMethod.Body.Instructions[0];
+                var call = Instruction.Create(OpCodes.Call, initRef);
+                processor.InsertBefore(firstInstruction, call);
 
-                if (lastRet != null)
-                {
-                    var ldarg0 = Instruction.Create(OpCodes.Ldarg_0);
-                    var call = Instruction.Create(OpCodes.Call, applyNightRef);
-
-                    processor.InsertBefore(lastRet, ldarg0);
-                    processor.InsertBefore(lastRet, call);
-                    Console.WriteLine("Patched Sun.Update successfully!");
-                }
-                
+                Console.WriteLine("Patched TimeManager.Awake successfully!");
                 asmDef.Write();
             }
         } catch (Exception ex) {
