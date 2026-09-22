@@ -26,17 +26,18 @@ public class AlwaysNightBehavior : MonoBehaviour
             {
                 if (light.type == LightType.Directional)
                 {
-                    light.color = new Color(0.05f, 0.1f, 0.25f, 1.0f);
-                    light.intensity = 0.1f;
-                    light.shadowStrength = 0.8f;
+                    // A bright, cinematic moonlight
+                    light.color = new Color(0.4f, 0.5f, 0.75f, 1.0f);
+                    light.intensity = 0.8f; 
+                    light.shadowStrength = 0.6f;
                 }
             }
         }
 
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.02f, 0.02f, 0.08f, 1.0f);
-        RenderSettings.ambientIntensity = 0.1f;
-        RenderSettings.reflectionIntensity = 0.05f;
+        // Lift the ambient lighting so the ground and buildings are visible
+        RenderSettings.ambientLight = new Color(0.2f, 0.25f, 0.4f, 1.0f);
+        RenderSettings.ambientIntensity = 0.8f;
+        RenderSettings.reflectionIntensity = 0.5f;
     }
 }
 
