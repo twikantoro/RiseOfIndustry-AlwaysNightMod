@@ -1,0 +1,15 @@
+# Build results
+*.dll
+*.exe
+*.pdb
+
+# VS/Rider/Editor specific
+.vs/
+.idea/
+*.user
+*.suo
+*.csproj.user
+
+# OS generated files
+.DS_Store
+Thumbs.db
